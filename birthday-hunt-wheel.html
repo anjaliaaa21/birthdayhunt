@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Birthday Hunt — Team Picker</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --surface2: #1e1e1e;
+    --border: rgba(255,255,255,0.08);
+    --text: #f0ece4;
+    --muted: rgba(240,236,228,0.45);
+    --t1: #7B6EF6;
+    --t2: #3ECFA0;
+    --t3: #F07050;
+    --t1-dim: rgba(123,110,246,0.15);
+    --t2-dim: rgba(62,207,160,0.15);
+    --t3-dim: rgba(240,112,80,0.15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+  }
+
+  .noise {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    opacity: 0.5;
+  }
+
+  .page { width: 100%; max-width: 480px; padding: 0 1.25rem 3rem; position: relative; z-index: 1; }
+
+  header {
+    text-align: center;
+    padding: 2.5rem 0 1.5rem;
+  }
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(52px, 14vw, 72px);
+    line-height: 0.92;
+    letter-spacing: 0.02em;
+    color: var(--text);
+  }
+  h1 span { color: var(--t1); }
+
+  .phase-pill {
+    display: inline-block;
+    margin-top: 14px;
+    padding: 5px 14px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+    background: var(--surface);
+    transition: all 0.3s;
+  }
+
+  /* WHEEL */
+  .wheel-section { display: flex; flex-direction: column; align-items: center; gap: 1.25rem; margin-bottom: 1.5rem; }
+
+  .wheel-container {
+    position: relative;
+    width: min(320px, 90vw);
+    height: min(320px, 90vw);
+  }
+
+  .wheel-container canvas {
+    width: 100%; height: 100%;
+    border-radius: 50%;
+    filter: drop-shadow(0 0 40px rgba(123,110,246,0.25));
+  }
+
+  .wheel-center {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    background: var(--bg);
+    border: 2px solid rgba(255,255,255,0.15);
+    z-index: 2;
+  }
+
+  .pointer {
+    position: absolute;
+    top: -16px; left: 50%;
+    transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 11px solid transparent;
+    border-right: 11px solid transparent;
+    border-top: 22px solid var(--text);
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.6));
+    z-index: 3;
+  }
+
+  /* RESULT */
+  .result-box {
+    text-align: center;
+    min-height: 64px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .result-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 42px;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.4s, transform 0.4s;
+  }
+  .result-name.show { opacity: 1; transform: translateY(0); }
+  .result-role {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 4px;
+    opacity: 0;
+    transition: opacity 0.4s 0.1s;
+  }
+  .result-role.show { opacity: 1; }
+
+  /* BUTTON */
+  .spin-btn {
+    width: 100%;
+    padding: 16px;
+    border-radius: 14px;
+    border: none;
+    background: var(--t1);
+    color: #fff;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: transform 0.15s, opacity 0.15s, background 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+  .spin-btn:active { transform: scale(0.97); }
+  .spin-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+  .spin-btn.phase2 { background: var(--t2); }
+  .spin-btn.done { background: var(--surface2); color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 14px; letter-spacing: 0; }
+
+  .reset-btn {
+    width: 100%; padding: 12px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-size: 14px;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: background 0.2s, color 0.2s;
+    display: none;
+  }
+  .reset-btn:active { background: var(--surface2); }
+
+  /* TEAMS */
+  .teams-section { display: none; margin-top: 1.5rem; }
+  .teams-section.visible { display: block; }
+  .teams-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 0.04em;
+    text-align: center;
+    margin-bottom: 1rem;
+    color: var(--muted);
+  }
+  .teams-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+
+  .team-card {
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 1rem 1.25rem;
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 0.4s, transform 0.4s;
+  }
+  .team-card.reveal { opacity: 1; transform: translateY(0); }
+
+  .team-card-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .team-card-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 0.05em;
+  }
+  .t1 .team-card-name { color: var(--t1); }
+  .t2 .team-card-name { color: var(--t2); }
+  .t3 .team-card-name { color: var(--t3); }
+
+  .leader-badge {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 100px;
+  }
+  .t1 .leader-badge { background: var(--t1-dim); color: var(--t1); }
+  .t2 .leader-badge { background: var(--t2-dim); color: var(--t2); }
+  .t3 .leader-badge { background: var(--t3-dim); color: var(--t3); }
+
+  .member-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .member-chip {
+    font-size: 13px;
+    padding: 4px 11px;
+    border-radius: 100px;
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .member-chip.is-leader {
+    font-weight: 600;
+  }
+  .t1 .member-chip.is-leader { border-color: var(--t1); color: var(--t1); background: var(--t1-dim); }
+  .t2 .member-chip.is-leader { border-color: var(--t2); color: var(--t2); background: var(--t2-dim); }
+  .t3 .member-chip.is-leader { border-color: var(--t3); color: var(--t3); background: var(--t3-dim); }
+
+  /* progress dots */
+  .dots { display: flex; gap: 6px; justify-content: center; margin-bottom: 0.5rem; }
+  .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    transition: background 0.3s, border-color 0.3s;
+  }
+  .dot.active { background: var(--t1); border-color: var(--t1); }
+  .dot.done-dot { background: rgba(123,110,246,0.4); border-color: rgba(123,110,246,0.4); }
+  .dot.phase2.active { background: var(--t2); border-color: var(--t2); }
+  .dot.phase2.done-dot { background: rgba(62,207,160,0.4); border-color: rgba(62,207,160,0.4); }
+
+  .confetti-wrap { position: fixed; inset: 0; pointer-events: none; z-index: 100; }
+</style>
+</head>
+<body>
+<div class="noise"></div>
+<div class="confetti-wrap" id="confetti-wrap"></div>
+
+<div class="page">
+  <header>
+    <div class="eyebrow">Saturday Night</div>
+    <h1>Birthday<br><span>Hunt</span></h1>
+    <div class="phase-pill" id="phase-pill">Spin to reveal the team leaders</div>
+  </header>
+
+  <div class="wheel-section">
+    <div id="dots-leader" class="dots">
+      <div class="dot" id="dot-l0"></div>
+      <div class="dot" id="dot-l1"></div>
+      <div class="dot" id="dot-l2"></div>
+    </div>
+
+    <div class="wheel-container">
+      <canvas id="wheel"></canvas>
+      <div class="wheel-center"></div>
+      <div class="pointer"></div>
+    </div>
+
+    <div class="result-box">
+      <div class="result-name" id="result-name"></div>
+      <div class="result-role" id="result-role"></div>
+    </div>
+
+    <div id="dots-member" class="dots" style="display:none;"></div>
+
+    <button class="spin-btn" id="spin-btn" onclick="spin()">Spin</button>
+    <button class="reset-btn" id="reset-btn" onclick="resetWheel()">Start over</button>
+  </div>
+
+  <div class="teams-section" id="teams-section">
+    <div class="teams-title">The Teams</div>
+    <div class="teams-grid" id="teams-grid"></div>
+  </div>
+</div>
+
+<script>
+const TEAMS = [
+  { key: 't1', name: 'Team 1', leader: 'Sabah', members: ['Dhruv', 'Palak', 'Aryaman', 'Saachi'], color: '#7B6EF6', dim: 'rgba(123,110,246,0.15)' },
+  { key: 't2', name: 'Team 2', leader: 'Hussein', members: ['Shree', 'Arushi', 'Khush', 'Gauri'], color: '#3ECFA0', dim: 'rgba(62,207,160,0.15)' },
+  { key: 't3', name: 'Team 3', leader: 'Kashish N', members: ['Raghav', 'Kashish G', 'Mahi', 'Rhea', 'Zohair'], color: '#F07050', dim: 'rgba(240,112,80,0.15)' }
+];
+
+const LEADERS = ['Sabah', 'Hussein', 'Kashish N'];
+const ALL_MEMBERS = ['Dhruv', 'Palak', 'Aryaman', 'Saachi', 'Shree', 'Arushi', 'Khush', 'Gauri', 'Raghav', 'Kashish G', 'Mahi', 'Rhea', 'Zohair'];
+
+const SEG_COLORS = [
+  '#7B6EF6','#3ECFA0','#F07050','#9B8DF8','#5DDBB3','#F28E74',
+  '#B3A9F9','#7DE5C3','#F5AE97','#5A50C4','#2AA87F','#C05A3C',
+  '#4A3FA0','#1E8A67'
+];
+
+let phase = 'leaders';
+let leadersRevealed = 0;
+let membersRevealed = 0;
+let spinning = false;
+let currentNames = [...LEADERS];
+let angle = 0;
+
+const canvas = document.getElementById('wheel');
+const ctx = canvas.getContext('2d');
+const DPR = window.devicePixelRatio || 1;
+const SIZE = Math.min(320, window.innerWidth * 0.88);
+canvas.width = SIZE * DPR;
+canvas.height = SIZE * DPR;
+ctx.scale(DPR, DPR);
+
+function drawWheel(names, rot) {
+  const cx = SIZE / 2, cy = SIZE / 2, r = cx - 6;
+  ctx.clearRect(0, 0, SIZE, SIZE);
+  const n = names.length;
+  if (n === 0) return;
+  const arc = (2 * Math.PI) / n;
+  names.forEach((name, i) => {
+    const start = rot + i * arc;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, start, start + arc);
+    ctx.closePath();
+    ctx.fillStyle = SEG_COLORS[i % SEG_COLORS.length];
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(start + arc / 2);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    const fs = n > 10 ? 11 : n > 6 ? 13 : 15;
+    ctx.font = `600 ${fs}px 'DM Sans', sans-serif`;
+    ctx.fillText(name, r - 10, fs * 0.38);
+    ctx.restore();
+  });
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, 21, 0, 2 * Math.PI);
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+}
+
+function getWinnerIdx(names, rot) {
+  const n = names.length;
+  const arc = (2 * Math.PI) / n;
+  const norm = ((-rot % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  return Math.floor(norm / arc) % n;
+}
+
+function spin() {
+  if (spinning) return;
+  spinning = true;
+  document.getElementById('spin-btn').disabled = true;
+  const rn = document.getElementById('result-name');
+  const rr = document.getElementById('result-role');
+  rn.classList.remove('show');
+  rr.classList.remove('show');
+
+  const names = currentNames;
+  const n = names.length;
+  const arc = (2 * Math.PI) / n;
+
+  const targetIdx = phase === 'leaders' ? leadersRevealed : membersRevealed;
+  const extraSpins = (6 + Math.random() * 4) * 2 * Math.PI;
+  const slotAngle = -(targetIdx * arc + arc / 2);
+  const normalised = ((slotAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  const spinTarget = angle + extraSpins + (normalised - ((angle % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+
+  const duration = 3200 + Math.random() * 900;
+  const start = performance.now();
+  const startAngle = angle;
+
+  function ease(t) { return 1 - Math.pow(1 - t, 3.5); }
+
+  function frame(now) {
+    const t = Math.min((now - start) / duration, 1);
+    angle = startAngle + (spinTarget - startAngle) * ease(t);
+    drawWheel(names, angle);
+    if (t < 1) {
+      requestAnimationFrame(frame);
+    } else {
+      angle = spinTarget;
+      drawWheel(names, angle);
+      spinning = false;
+      revealResult();
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+function getTeam(name) {
+  return TEAMS.find(t => t.members.includes(name) || t.leader === name);
+}
+
+function revealResult() {
+  const winner = currentNames[phase === 'leaders' ? leadersRevealed : membersRevealed];
+  const rn = document.getElementById('result-name');
+  const rr = document.getElementById('result-role');
+
+  if (phase === 'leaders') {
+    const team = getTeam(winner);
+    rn.style.color = team.color;
+    rn.textContent = winner;
+    rr.textContent = team.name + ' — Leader';
+    rn.classList.add('show');
+    rr.classList.add('show');
+
+    updateLeaderDot(leadersRevealed, true);
+    leadersRevealed++;
+
+    if (leadersRevealed < 3) {
+      document.getElementById('phase-pill').textContent = `${3 - leadersRevealed} leader${3 - leadersRevealed > 1 ? 's' : ''} left`;
+      document.getElementById('spin-btn').disabled = false;
+    } else {
+      document.getElementById('phase-pill').textContent = 'Now spin to assign the rest';
+      document.getElementById('spin-btn').className = 'spin-btn phase2';
+      phase = 'members';
+      currentNames = [...ALL_MEMBERS];
+      buildMemberDots();
+      document.getElementById('dots-leader').style.display = 'none';
+      document.getElementById('dots-member').style.display = 'flex';
+      angle = 0;
+      setTimeout(() => { drawWheel(currentNames, 0); document.getElementById('spin-btn').disabled = false; }, 400);
+    }
+  } else {
+    const team = getTeam(winner);
+    rn.style.color = team.color;
+    rn.textContent = winner;
+    rr.textContent = 'Joining ' + team.name;
+    rn.classList.add('show');
+    rr.classList.add('show');
+
+    updateMemberDot(membersRevealed, team.color);
+    membersRevealed++;
+    currentNames = currentNames.filter(n => n !== winner);
+
+    if (currentNames.length === 0) {
+      document.getElementById('phase-pill').textContent = 'Teams are set!';
+      document.getElementById('spin-btn').textContent = 'All done!';
+      document.getElementById('spin-btn').className = 'spin-btn done';
+      document.getElementById('spin-btn').disabled = true;
+      document.getElementById('reset-btn').style.display = 'block';
+      setTimeout(() => { renderTeams(); launchConfetti(); }, 600);
+    } else {
+      document.getElementById('phase-pill').textContent = `${currentNames.length} left to assign`;
+      angle = 0;
+      setTimeout(() => { drawWheel(currentNames, 0); document.getElementById('spin-btn').disabled = false; }, 300);
+    }
+  }
+}
+
+function updateLeaderDot(idx, done) {
+  const dot = document.getElementById('dot-l' + idx);
+  if (dot) { dot.classList.remove('active'); dot.classList.add('done-dot'); }
+  const next = document.getElementById('dot-l' + (idx + 1));
+  if (next) next.classList.add('active');
+}
+
+function buildMemberDots() {
+  const wrap = document.getElementById('dots-member');
+  wrap.innerHTML = '';
+  ALL_MEMBERS.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot phase2' + (i === 0 ? ' active' : '');
+    d.id = 'dot-m' + i;
+    wrap.appendChild(d);
+  });
+}
+
+function updateMemberDot(idx, color) {
+  const dot = document.getElementById('dot-m' + idx);
+  if (dot) { dot.style.background = color + '88'; dot.style.borderColor = color + '88'; dot.classList.remove('active'); }
+  const next = document.getElementById('dot-m' + (idx + 1));
+  if (next) next.classList.add('active');
+}
+
+function renderTeams() {
+  const grid = document.getElementById('teams-grid');
+  grid.innerHTML = '';
+  TEAMS.forEach((team, i) => {
+    const card = document.createElement('div');
+    card.className = `team-card ${team.key}`;
+    const allPeople = [team.leader, ...team.members];
+    const chipsHtml = allPeople.map(m =>
+      `<span class="member-chip ${m === team.leader ? 'is-leader' : ''}">${m}${m === team.leader ? ' ★' : ''}</span>`
+    ).join('');
+    card.innerHTML = `
+      <div class="team-card-header">
+        <span class="team-card-name">${team.name}</span>
+        <span class="leader-badge">Leader: ${team.leader}</span>
+      </div>
+      <div class="member-list">${chipsHtml}</div>
+    `;
+    grid.appendChild(card);
+    setTimeout(() => card.classList.add('reveal'), 100 + i * 150);
+  });
+  document.getElementById('teams-section').classList.add('visible');
+}
+
+function launchConfetti() {
+  const wrap = document.getElementById('confetti-wrap');
+  const colors = ['#7B6EF6','#3ECFA0','#F07050','#f0e04f','#ee82c4','#fff'];
+  for (let i = 0; i < 80; i++) {
+    const el = document.createElement('div');
+    const size = 6 + Math.random() * 8;
+    el.style.cssText = `
+      position: absolute;
+      width: ${size}px; height: ${size}px;
+      background: ${colors[Math.floor(Math.random() * colors.length)]};
+      left: ${Math.random() * 100}%;
+      top: -10px;
+      border-radius: ${Math.random() > 0.5 ? '50%' : '2px'};
+      opacity: ${0.7 + Math.random() * 0.3};
+      animation: fall ${1.8 + Math.random() * 2}s ease-in ${Math.random() * 1.2}s forwards;
+    `;
+    wrap.appendChild(el);
+  }
+  setTimeout(() => { wrap.innerHTML = ''; }, 5000);
+}
+
+const style = document.createElement('style');
+style.textContent = `@keyframes fall { to { transform: translateY(105vh) rotate(${Math.random() > 0.5 ? '' : '-'}${180 + Math.floor(Math.random()*360)}deg); opacity: 0; } }`;
+document.head.appendChild(style);
+
+document.getElementById('dot-l0').classList.add('active');
+drawWheel(currentNames, 0);
+
+function resetWheel() {
+  phase = 'leaders'; leadersRevealed = 0; membersRevealed = 0;
+  currentNames = [...LEADERS]; angle = 0;
+  document.getElementById('result-name').textContent = '';
+  document.getElementById('result-name').classList.remove('show');
+  document.getElementById('result-role').textContent = '';
+  document.getElementById('result-role').classList.remove('show');
+  document.getElementById('phase-pill').textContent = 'Spin to reveal the team leaders';
+  document.getElementById('spin-btn').className = 'spin-btn';
+  document.getElementById('spin-btn').textContent = 'Spin';
+  document.getElementById('spin-btn').disabled = false;
+  document.getElementById('reset-btn').style.display = 'none';
+  document.getElementById('dots-leader').style.display = 'flex';
+  document.getElementById('dots-member').style.display = 'none';
+  document.getElementById('teams-section').classList.remove('visible');
+  document.getElementById('teams-grid').innerHTML = '';
+  ['dot-l0','dot-l1','dot-l2'].forEach((id, i) => {
+    const d = document.getElementById(id);
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.style.background = '';
+    d.style.borderColor = '';
+  });
+  drawWheel(currentNames, 0);
+}
+</script>
+</body>
+</html>
